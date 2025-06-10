@@ -1,0 +1,45 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rule.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node exporters on server agents
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets:
+        - '192.168.1.4:9100'  # ubuntu-server-01
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+):.*'
+        target_label: server_ip
+        replacement: '${1}'
+      - source_labels: [server_ip]
+        target_label: instance
+        replacement: '${1}'
+
+  # Kafka metrics (if JMX exporter is available)
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:9308']
+    scrape_interval: 30s
+
+  # Elasticsearch metrics
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch:9200']
+    metrics_path: /_prometheus/metrics
+    scrape_interval: 30s

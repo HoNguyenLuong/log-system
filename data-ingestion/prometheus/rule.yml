@@ -1,0 +1,95 @@
+groups:
+- name: server_alerts
+  rules:
+  # CPU Usage Alert
+  - alert: HighCPUUsage
+    expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+    for: 2m
+    labels:
+      severity: critical
+      alert_type: cpu_alert
+      server_ip: "{{ $labels.server_ip }}"
+    annotations:
+      summary: "High CPU usage on server {{ $labels.server_ip }}"
+      description: "CPU usage is above 90% for more than 2 minutes on server {{ $labels.server_ip }}"
+      current_value: "{{ $value }}%"
+
+  # Memory Usage Alert  
+  - alert: HighMemoryUsage
+    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+    for: 2m
+    labels:
+      severity: critical
+      alert_type: memory_alert
+      server_ip: "{{ $labels.server_ip }}"
+    annotations:
+      summary: "High memory usage on server {{ $labels.server_ip }}"
+      description: "Memory usage is above 90% for more than 2 minutes on server {{ $labels.server_ip }}"
+      current_value: "{{ $value }}%"
+
+  # Disk Usage Alert
+  - alert: HighDiskUsage
+    expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 90
+    for: 5m
+    labels:
+      severity: warning
+      alert_type: disk_alert
+      server_ip: "{{ $labels.server_ip }}"
+    annotations:
+      summary: "High disk usage on server {{ $labels.server_ip }}"
+      description: "Disk usage is above 90% for more than 5 minutes on {{ $labels.mountpoint }} of server {{ $labels.server_ip }}"
+      current_value: "{{ $value }}%"
+      mountpoint: "{{ $labels.mountpoint }}"
+
+  # Server Down Alert
+  - alert: ServerDown
+    expr: up == 0
+    for: 1m
+    labels:
+      severity: critical
+      alert_type: server_down
+      server_ip: "{{ $labels.server_ip }}"
+    annotations:
+      summary: "Server {{ $labels.server_ip }} is down"
+      description: "Server {{ $labels.server_ip }} has been down for more than 1 minute"
+
+  # Load Average Alert
+  - alert: HighLoadAverage
+    expr: node_load1 > 4
+    for: 5m
+    labels:
+      severity: warning
+      alert_type: load_alert
+      server_ip: "{{ $labels.server_ip }}"
+    annotations:
+      summary: "High load average on server {{ $labels.server_ip }}"
+      description: "Load average is {{ $value }} for more than 5 minutes on server {{ $labels.server_ip }}"
+      current_value: "{{ $value }}"
+
+- name: application_alerts
+  rules:
+  # Network Interface Down
+  - alert: NetworkInterfaceDown
+    expr: node_network_up == 0
+    for: 2m
+    labels:
+      severity: critical
+      alert_type: network_alert
+      server_ip: "{{ $labels.server_ip }}"
+    annotations:
+      summary: "Network interface {{ $labels.device }} is down on server {{ $labels.server_ip }}"
+      description: "Network interface {{ $labels.device }} has been down for more than 2 minutes"
+      interface: "{{ $labels.device }}"
+
+  # Too Many Open Files
+  - alert: TooManyOpenFiles
+    expr: node_filefd_allocated / node_filefd_maximum * 100 > 80
+    for: 5m
+    labels:
+      severity: warning
+      alert_type: file_descriptor_alert
+      server_ip: "{{ $labels.server_ip }}"
+    annotations:
+      summary: "Too many open files on server {{ $labels.server_ip }}"
+      description: "File descriptor usage is above 80% on server {{ $labels.server_ip }}"
+      current_value: "{{ $value }}%"

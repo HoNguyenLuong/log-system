@@ -1,0 +1,38 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@monitoring.local'
+
+route:
+  group_by: ['alertname', 'server_ip']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'kafka-webhook'
+
+receivers:
+- name: 'kafka-webhook'
+  webhook_configs:
+  - url: 'http://kafka-webhook-bridge:8000/webhook/alert'
+    send_resolved: true
+    http_config:
+      basic_auth:
+        username: 'alertmanager'
+        password: 'monitoring123'
+    max_alerts: 0
+
+# Custom webhook receiver to send to Kafka
+- name: 'kafka-sender'
+  webhook_configs:
+  - url: 'http://kafka-webhook-bridge:8000/send-to-kafka'
+    send_resolved: true
+
+
+inhibit_rules:
+- source_match:
+    severity: 'critical'
+  target_match:
+    severity: 'warning'
+  equal: ['alertname', 'server_ip']
+
+templates:
+- '/etc/alertmanager/templates/*.tmpl'

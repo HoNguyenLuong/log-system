@@ -1,0 +1,47 @@
+# ======================== Cluster Configuration ========================
+cluster.name: monitoring-cluster
+node.name: ${NODE_NAME}
+
+# ======================== Network Configuration ========================
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+network.bind_host: 0.0.0.0
+network.publish_host: _local_
+
+# ======================== Discovery Configuration ========================
+discovery.seed_hosts: ["elasticsearch1", "elasticsearch2"]
+cluster.initial_master_nodes: ["elasticsearch1", "elasticsearch2"]
+bootstrap.memory_lock: false
+
+# ======================== Path Configuration ========================
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs
+
+# ======================== Security Configuration ========================
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+
+# ======================== Monitoring Configuration ========================
+xpack.monitoring.collection.enabled: true
+
+# ======================== Thread Pool Configuration ========================
+thread_pool:
+  write:
+    size: 2
+    queue_size: 1000
+  search:
+    size: 3
+    queue_size: 1000
+
+# ======================== Disk Usage Configuration ========================
+cluster.routing.allocation.disk.watermark.low: 85%
+cluster.routing.allocation.disk.watermark.high: 90%
+cluster.routing.allocation.disk.watermark.flood_stage: 95%
+
+# ======================== Allocation Settings ========================
+cluster.routing.allocation.awareness.attributes: rack_id
+
+# ======================== Optional Features ========================
+xpack.ml.enabled: false
+xpack.watcher.enabled: false

@@ -1,0 +1,33 @@
+{
+  "index_patterns": ["logs-*", "log-monitoring-cluster-*"],
+  "priority": 500,
+  "template": {
+    "settings": {
+      "index.number_of_shards": 1,
+      "index.number_of_replicas": 0,
+      "index.lifecycle.name": "log-policy",
+      "index.refresh_interval": "5s",
+      "index.mapping.dynamic_template": true,
+      "index.mapping.total_fields.limit": 2000,
+      "index.mapping.depth.limit": 20
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "message": {
+          "type": "text"
+        },
+        "log.level": {
+          "type": "keyword"
+        },
+        "host": {
+          "type": "keyword"
+        }
+      }
+    }
+  },
+  "composed_of": [],
+  "data_stream": {}
+}
