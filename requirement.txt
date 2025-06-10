@@ -1,5 +1,6 @@
 pyspark
-pyflink
+pyflink==1.18.1
+apache-flink
 Flask
 kafka-python
 flask
