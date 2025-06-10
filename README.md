@@ -137,6 +137,24 @@ Log_system/
 
 ---
 
+## 🔌 Port và dịch vụ
+
+| Service                | Port Host → Container | Ghi chú                                   |
+| ---------------------- | --------------------- | ----------------------------------------- |
+| `kafka1`               | 9192 → 9092           | Cổng Kafka Broker 1                       |
+| `kafka2`               | *(Không publish)*     | Kafka Broker 2 chỉ hoạt động nội bộ       |
+| `kafka3`               | *(Không publish)*     | Kafka Broker 3 chỉ hoạt động nội bộ       |
+| `akhq`                 | 9000 → 8080           | Giao diện web quản lý Kafka (AKHQ UI)     |
+| `kafka-webhook-bridge` | 8000 → 8000           | API nhận webhook và gửi dữ liệu vào Kafka |
+| `elasticsearch1`       | 9200 → 9200           | Elasticsearch node 1                      |
+| `elasticsearch2`       | 9201 → 9200           | Elasticsearch node 2                      |
+| `kibana`               | 5601 → 5601           | Giao diện Kibana                          |
+| `logstash`             | 5044 → 5044           | Nhận log từ Filebeat (giao thức Beats)    |
+| `prometheus`           | 9090 → 9090           | Giao diện và API Prometheus               |
+| `alertmanager`         | 9093 → 9093           | Giao diện và API Alertmanager             |
+
+---
+
 ## 📌 Ghi chú
 
 * Các thành phần đều container hóa (Docker/Kubernetes khuyến khích)
