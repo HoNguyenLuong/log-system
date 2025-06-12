@@ -21,12 +21,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Kafka configuration
-KAFKA_BOOTSTRAP_SERVERS = os.getenv(
-    'KAFKA_BOOTSTRAP_SERVERS',
-    'kafka1:9092,kafka2:9092,kafka3:9092'
-)
+KAFKA_BOOTSTRAP_SERVERS = 'kafka1:9092,kafka2:9092,kafka3:9092'
 
-ALERT_TOPIC = os.getenv('ALERT_TOPIC', 'alert')
+ALERT_TOPIC = 'raw_alerts'
 
 # Initialize producer later
 producer = None

@@ -1,0 +1,37 @@
+Please classify the following alert/log entry using systematic analysis:
+
+=== INCIDENT DATA ===
+{classification_context}
+
+=== LEARNING FROM FEEDBACK ===
+{feedback_context}
+
+=== ANALYSIS INSTRUCTIONS ===
+1. Carefully examine all provided data points
+2. Consider the historical context and patterns
+3. Apply the reasoning methodology step by step
+4. Assign appropriate confidence score based on evidence quality
+5. Ensure severity assessment reflects actual business impact
+6. Provide actionable remediation steps with clear priorities
+
+=== CONTEXT CLUES TO CONSIDER ===
+- Alert names and descriptions often contain category hints
+- Labels/annotations provide technical context
+- Log levels indicate urgency (ERROR > WARN > INFO)
+- Service names help identify system boundaries
+- Host information shows scope of impact
+- Recent related events may indicate cascading failures
+- Historical frequency patterns suggest normal vs abnormal behavior
+
+=== COMMON CLASSIFICATION PATTERNS ===
+- High CPU + specific service = likely service_down or cpu_high_usage
+- Authentication keywords = likely auth_failure
+- Database connection errors = likely database_error
+- Disk space warnings = likely disk_error
+- Network timeouts/DNS = likely network_error
+- Memory OOM events = likely memory_high_usage
+- Security-related keywords = likely security_incident
+
+Timestamp: {timestamp}
+
+Respond with ONLY the JSON classification result.

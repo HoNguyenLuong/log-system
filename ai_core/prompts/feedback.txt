@@ -1,0 +1,37 @@
+=== FEEDBACK FOR CLASSIFICATION IMPROVEMENT ===
+
+Your previous classification has been reviewed and needs improvement.
+
+=== ORIGINAL INCIDENT ===
+{original_incident}
+
+=== YOUR PREVIOUS CLASSIFICATION ===
+Category: {previous_category}
+Severity: {previous_severity}
+Confidence: {previous_confidence}
+
+=== FEEDBACK RECEIVED ===
+Classification Issues: {classification_feedback}
+Reasoning Issues: {reasoning_feedback}
+Severity Issues: {severity_feedback}
+Action Issues: {action_feedback}
+
+=== SPECIFIC CORRECTIONS NEEDED ===
+{specific_corrections}
+
+=== IMPROVEMENT SUGGESTIONS ===
+{improvement_suggestions}
+
+=== FEEDBACK ITERATION ===
+This is feedback round {loop_count} of maximum 3 rounds.
+Focus on addressing the most critical issues identified above.
+
+=== INSTRUCTIONS FOR REVISION ===
+1. Carefully review the feedback points
+2. Re-examine the original incident data
+3. Apply the corrections and suggestions
+4. Provide improved classification with enhanced reasoning
+5. Ensure actions address the identified gaps
+6. Maintain or improve confidence scores where justified
+
+Please provide your REVISED classification addressing the feedback above.

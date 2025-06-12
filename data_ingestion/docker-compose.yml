@@ -108,7 +108,6 @@ services:
       monitoring-network:
         ipv4_address: 172.31.0.50
 
-
   elasticsearch1:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
     container_name: elasticsearch1

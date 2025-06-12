@@ -1,0 +1,63 @@
+Please evaluate the following incident classification result:
+
+=== ORIGINAL INCIDENT DATA ===
+{original_incident}
+
+=== CLASSIFICATION RESULT TO EVALUATE ===
+Category: {classified_category}
+Confidence: {confidence_score}
+Severity: {classified_severity}
+
+Reasoning Chain:
+{reasoning_chain}
+
+Root Cause Analysis:
+{root_cause_analysis}
+
+Suggested Actions:
+{suggested_actions}
+
+Risk Assessment:
+{risk_assessment}
+
+=== EVALUATION CONTEXT ===
+Loop Count: {loop_count}
+Previous Feedback: {previous_feedback}
+
+=== EVALUATION CHECKLIST ===
+
+1. **Classification Accuracy Check**:
+   - Does the category match the symptoms and evidence?
+   - Are there any obvious misclassifications?
+   - Is the confidence score appropriate?
+
+2. **Reasoning Quality Assessment**:
+   - Is the reasoning chain logical and complete?
+   - Are conclusions supported by evidence?
+   - Are there any technical inaccuracies?
+
+3. **Severity Validation**:
+   - Does severity align with business impact?
+   - Is the urgency level appropriate?
+   - Would this trigger correct escalation procedures?
+
+4. **Action Effectiveness Review**:
+   - Are immediate actions appropriate for stopping the issue?
+   - Do short-term actions address the symptoms?
+   - Do long-term actions prevent recurrence?
+   - Are actions specific and executable?
+
+5. **Risk Assessment Accuracy**:
+   - Does risk assessment consider all stakeholders?
+   - Is business impact accurately described?
+   - Are escalation recommendations appropriate?
+
+=== DECISION CRITERIA ===
+- Send feedback if overall quality score < 0.8 OR critical issues identified
+- Accept if quality is good enough for operational use
+- Consider operational urgency vs. perfection trade-offs
+- Focus on most impactful improvements
+
+Timestamp: {timestamp}
+
+Provide your evaluation in the required JSON format.
