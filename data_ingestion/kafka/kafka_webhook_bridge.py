@@ -29,7 +29,7 @@ ALERT_TOPIC = 'raw_alerts'
 producer = None
 
 
-def get_kafka_producer(retries=5, delay=5):
+def get_kafka_producer(retries=10, delay=5):
     """Try connecting to Kafka with retries"""
     for attempt in range(retries):
         try:

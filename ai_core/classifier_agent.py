@@ -7,7 +7,7 @@ from datetime import datetime
 from base_agent import BaseAgent
 from mcp_schema import ClassificationResult, AlertCategory, AlertSeverity, FeedbackMessage
 
-CLASSIFIER_ENDPOINT = "http://localhost:5000/api/generate"
+CLASSIFIER_ENDPOINT = "http://127.0.0.1:5000/v1/chat/completions"
 
 
 class ClassifierReasonerAgent(BaseAgent):

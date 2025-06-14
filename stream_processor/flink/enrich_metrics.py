@@ -1,5 +1,6 @@
 import json
 import requests
+import traceback
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.common.typeinfo import Types
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
@@ -12,7 +13,7 @@ from pyflink.common import Configuration # Kept for potential future use, but no
 # from stream_processor.config.prometheus_config import PROMETHEUS_URL, PROM_QUERIES
 
 # For standalone execution, if config files are not available:
-KAFKA_BROKERS = "localhost:9092"
+KAFKA_BROKERS = "localhost:9192"
 KAFKA_SOURCE_TOPIC = "raw_alerts"
 KAFKA_SINK_TOPIC = "enriched_alerts"
 PROMETHEUS_URL = "http://localhost:9090"
@@ -22,7 +23,7 @@ PROM_QUERIES = {"load1": "5m"} # Example query: avg_over_time for 5 minutes
 
 # Dummy metadata store
 SERVER_METADATA = {
-    "192.168.1.25": {
+    "192.168.1.7": {
         "os": "Ubuntu",
         "os_version": "20.04",
         "manager": {
@@ -31,7 +32,6 @@ SERVER_METADATA = {
         }
     }
 }
-
 
 def query_prometheus(ip, range_str):
     """
@@ -68,18 +68,20 @@ def query_prometheus(ip, range_str):
 
 
 def enrich_alert(raw_alert_json):
-    """
-    Enriches a raw alert JSON string with static metadata and dynamic Prometheus metrics.
-    Returns the enriched JSON string or the original raw string if enrichment fails.
-    """
     try:
-        # Parse the incoming JSON string into a Python dictionary
         alert = json.loads(raw_alert_json)
-        ip = alert.get("server_ip") # Get the server IP from the alert
-        enriched = alert.copy() # Create a copy to add enrichment data
 
-        # --- Enrich with static metadata from SERVER_METADATA ---
-        metadata = SERVER_METADATA.get(ip, {}) # Get metadata for the IP, or an empty dict
+        # Fallback IP extraction logic
+        ip = alert.get("server_ip")
+        if ip == "unknown" or not ip:
+            # Try to get from labels.instance (e.g., "192.168.1.7:9100") → strip port
+            instance = alert.get("labels", {}).get("instance", "")
+            ip = instance.split(":")[0] if instance else None
+
+        enriched = alert.copy()
+
+        # --- Enrich with static metadata ---
+        metadata = SERVER_METADATA.get(ip, {}) if ip else {}
         enriched.update({
             "os": metadata.get("os", "unknown"),
             "os_version": metadata.get("os_version", "unknown"),
@@ -87,24 +89,23 @@ def enrich_alert(raw_alert_json):
             "manager_email": metadata.get("manager", {}).get("email", "unknown"),
         })
 
-        # --- Enrich with Prometheus metrics if IP is available ---
+        # --- Enrich with Prometheus metrics ---
         if ip:
             for key, prom_range in PROM_QUERIES.items():
                 metric_val = query_prometheus(ip, prom_range)
                 enriched[f"metric_{key}"] = metric_val
         else:
-            print(f"[Warning] 'server_ip' not found in alert: {raw_alert_json}. Skipping Prometheus enrichment.")
+            print(f"[Warning] Không tìm thấy IP trong alert: {raw_alert_json}")
 
-        # Convert the enriched dictionary back to a JSON string
         return json.dumps(enriched)
+
     except json.JSONDecodeError as e:
-        # Handle cases where the input is not valid JSON
         print(f"[Error] Failed to decode JSON alert: {e}. Raw input: {raw_alert_json}")
-        return raw_alert_json # Return original raw data to avoid losing it
+        return raw_alert_json
     except Exception as e:
-        # Catch any other unexpected errors during the enrichment process
-        print(f"[Error] Failed to enrich alert due to unexpected error: {e}. Raw input: {raw_alert_json}")
-        return raw_alert_json # Return original raw data
+        print(f"[Error] Failed to enrich alert: {e}. Raw input: {raw_alert_json}")
+        return raw_alert_json
+
 
 
 def main():
@@ -140,7 +141,7 @@ def main():
         deserialization_schema=SimpleStringSchema(), # Defines how to deserialize incoming bytes to strings
         properties={
             "bootstrap.servers": KAFKA_BROKERS, # Kafka broker addresses
-            "group.id": "flink-enrich-group", # Consumer group ID
+            "group.id": "flink-enrich-group-v2", # Consumer group ID
             "auto.offset.reset": "earliest" # Start reading from the beginning if no committed offset
         }
     )
@@ -169,12 +170,17 @@ def main():
 
     # c. Add the Kafka sink to the enriched DataStream
     # This will publish the enriched records to the Kafka sink topic.
+    enriched_ds.print()
     enriched_ds.add_sink(kafka_sink)
 
     # 8. Execute the Flink job
     # This call is blocking and will submit the job to the Flink cluster.
     print(f"Starting Flink job 'Alert Enrichment Job'. Reading from '{KAFKA_SOURCE_TOPIC}', writing to '{KAFKA_SINK_TOPIC}'.")
-    env.execute("Alert Enrichment Job")
+    try:
+        env.execute("Alert Enrichment Job")
+    except Exception as e:
+        print("❌ Flink job failed with exception:")
+        traceback.print_exc()
     print("Flink job finished.")
 
 

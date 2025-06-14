@@ -6,7 +6,7 @@ from datetime import datetime
 from base_agent import BaseAgent
 from mcp_schema import EvaluationResult, FeedbackMessage, AlertCategory, AlertSeverity
 
-EVALUATOR_ENDPOINT = "http://localhost:5001/api/generate"
+EVALUATOR_ENDPOINT = "http://127.0.0.1:5000/v1/chat/completions"
 
 
 class EvaluatorAgent(BaseAgent):

@@ -95,16 +95,23 @@ class BaseAgent(ABC):
     async def call_lm_studio(self, prompt: str, system_prompt: str = "", api_url: str = "http://localhost:5000/api/generate", temperature: float = 0.1) -> str:
         """Call LM Studio API for AI inference"""
         async with httpx.AsyncClient(timeout=300.0) as client:
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+
             payload = {
-                "prompt": prompt,
-                "system_prompt": system_prompt, 
-                "temperature": temperature
+                "messages": messages,
+                "model": self.model_name,
+                "temperature": temperature,
+                "stream": False
             }
+
             try:
-                response = await client.post(api_url, json=payload)  # LM Studio API endpoint
+                response = await client.post(api_url, json=payload)
                 response.raise_for_status()
                 result = response.json()
-                return result.get("response", "").strip()
+                return result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
             except Exception as e:
                 self.logger.error(f"LM Studio API call failed: {e}")
                 return ""

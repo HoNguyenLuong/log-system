@@ -7,23 +7,31 @@ networks:
 
 services:
   kafka1:
-    image: apache/kafka:4.0.0
+    image: apache/kafka:3.7.0
     hostname: kafka1
     ports:
-      - "9192:9092"   # đổi port host 9192
+      - "9192:9192"  # Expose PLAINTEXT_EXTERNAL ra host
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://kafka1:9093"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_LISTENERS: "PLAINTEXT_INTERNAL://0.0.0.0:9092,PLAINTEXT_EXTERNAL://0.0.0.0:9192,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT_INTERNAL://kafka1:9092,PLAINTEXT_EXTERNAL://localhost:9192"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT_INTERNAL"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       monitoring-network:
         ipv4_address: 172.31.0.11
@@ -31,18 +39,31 @@ services:
       - kafka1-data:/var/lib/kafka/data
 
   kafka2:
-    image: apache/kafka:4.0.0
+    image: apache/kafka:3.7.0
     hostname: kafka2
+    ports:
+      - "9193:9192"
     environment:
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://kafka2:9093"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka2:9092"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_LISTENERS: "PLAINTEXT_INTERNAL://0.0.0.0:9092,PLAINTEXT_EXTERNAL://0.0.0.0:9192,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT_INTERNAL://kafka2:9092,PLAINTEXT_EXTERNAL://localhost:9193"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT_INTERNAL"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       monitoring-network:
         ipv4_address: 172.31.0.12
@@ -50,18 +71,31 @@ services:
       - kafka2-data:/var/lib/kafka/data
 
   kafka3:
-    image: apache/kafka:4.0.0
+    image: apache/kafka:3.7.0
     hostname: kafka3
+    ports:
+      - "9194:9192"
     environment:
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://kafka3:9093"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka3:9092"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_LISTENERS: "PLAINTEXT_INTERNAL://0.0.0.0:9092,PLAINTEXT_EXTERNAL://0.0.0.0:9192,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT_INTERNAL://kafka3:9092,PLAINTEXT_EXTERNAL://localhost:9194"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT_INTERNAL"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       monitoring-network:
         ipv4_address: 172.31.0.13
@@ -78,10 +112,24 @@ services:
         akhq:
           server:
             port: 8080
+          topic:
+            log-dir: false
           connections:
             local-kafka:
               properties:
                 bootstrap.servers: "kafka1:9092,kafka2:9092,kafka3:9092"
+              clients-defaults:
+                consumer:
+                  properties:
+                    default.api.timeout.ms: 15000000
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
     depends_on:
       - kafka1
       - kafka2
@@ -97,13 +145,20 @@ services:
     container_name: kafka-webhook-bridge
     ports:
       - "8000:8000"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka1:9092,kafka2:9092,kafka3:9092"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
     depends_on:
       - kafka1
       - kafka2
       - kafka3
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: "kafka1:9092,kafka2:9092,kafka3:9092"
-      ALERT_TOPIC: "alert"
     networks:
       monitoring-network:
         ipv4_address: 172.31.0.50
@@ -111,12 +166,20 @@ services:
   elasticsearch1:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
     container_name: elasticsearch1
-    networks:
-      monitoring-network:
-        ipv4_address: 172.31.0.20
     environment:
       - NODE_NAME=elasticsearch1
       - node.attr.rack_id=rack1
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      monitoring-network:
+        ipv4_address: 172.31.0.20
     volumes:
       - ./elastic/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
       - es_data1:/usr/share/elasticsearch/data
@@ -127,12 +190,20 @@ services:
   elasticsearch2:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
     container_name: elasticsearch2
-    networks:
-      monitoring-network:
-        ipv4_address: 172.31.0.19
     environment:
       - NODE_NAME=elasticsearch2
       - node.attr.rack_id=rack2
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      monitoring-network:
+        ipv4_address: 172.31.0.19
     volumes:
       - ./elastic/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
       - es_data2:/usr/share/elasticsearch/data
@@ -143,9 +214,6 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:8.8.0
     container_name: kibana
-    networks:
-      monitoring-network:
-        ipv4_address: 172.31.0.21
     depends_on:
       - elasticsearch1
       - elasticsearch2
@@ -153,8 +221,19 @@ services:
       - ELASTICSEARCH_HOSTS=["http://elasticsearch1:9200","http://elasticsearch2:9200"]
       - ELASTICSEARCH_USERNAME=""
       - ELASTICSEARCH_PASSWORD=""
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
     volumes:
       - ./elastic/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    networks:
+      monitoring-network:
+        ipv4_address: 172.31.0.21
     ports:
       - "5601:5601"
     restart: unless-stopped
@@ -162,17 +241,25 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:8.8.0
     container_name: logstash
-    networks:
-      monitoring-network:
-        ipv4_address: 172.31.0.22
     depends_on:
       - elasticsearch1
       - elasticsearch2
       - kafka1
     environment:
-      - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+      - "LS_JAVA_OPTS=-Xmx512m -Xms512m"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     volumes:
       - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    networks:
+      monitoring-network:
+        ipv4_address: 172.31.0.22
     ports:
       - "5044:5044"
     restart: unless-stopped
@@ -180,9 +267,6 @@ services:
   prometheus:
     image: prom/prometheus:v2.45.0
     container_name: prometheus
-    networks:
-      monitoring-network:
-        ipv4_address: 172.31.0.23
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -191,10 +275,21 @@ services:
       - '--storage.tsdb.retention.time=7d'
       - '--web.enable-lifecycle'
       - '--web.enable-admin-api'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rule.yml:/etc/prometheus/rule.yml:ro
       - prometheus-data:/prometheus
+    networks:
+      monitoring-network:
+        ipv4_address: 172.31.0.23
     ports:
       - "9090:9090"
     restart: unless-stopped
@@ -202,17 +297,24 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.26.0
     container_name: alertmanager
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     networks:
       monitoring-network:
         ipv4_address: 172.31.0.24
-    depends_on:
-      - prometheus
-    volumes:
-      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     ports:
       - "9093:9093"
     restart: unless-stopped
-
 
 volumes:
   kafka1-data:
@@ -221,3 +323,5 @@ volumes:
   es_data1:
   es_data2:
   prometheus-data:
+ 
+ 
