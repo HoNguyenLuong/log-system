@@ -6,40 +6,59 @@ from datetime import datetime
 from base_agent import BaseAgent
 from mcp_schema import MCPMessage, AlertSeverity
 from elasticsearch import Elasticsearch
-
+import re
+from config import CLASSIFIER_ENDPOINT, EVALUATOR_ENDPOINT, ORCHESTRATOR_ENDPOINT, DEFAULT_TEMPERATURE
+import asyncio
 
 class OrchestratorAgent(BaseAgent):
     def __init__(self, **kwargs):
         super().__init__(
             agent_name="orchestrator",
-            model_name="phi3.5:3.8b",
+            model_name="mistral-7b-instruct-v0.1",  # Sử dụng cùng model với các agent khác
             **kwargs
         )
-        self.es_client = Elasticsearch([{"host": "localhost", "port": 9200}])
+        self.es_client = Elasticsearch([{"host": "localhost", "port": 9200, "scheme": "http"}])
 
     def get_input_topics(self) -> List[str]:
-        return ["enriched_alerts"]
+        return ["enriched_alerts"]  # Nhận alert từ Prometheus Alertmanager
 
     def get_output_topics(self) -> Dict[str, str]:
         return {"default": "classifier_in"}
 
     async def process_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Process and normalize alerts/logs to MCP format"""
-
         try:
-            # Detect message type and normalize
-            if self._is_prometheus_alert(message):
-                mcp_message = await self._normalize_prometheus_alert(message)
-            elif self._is_elasticsearch_log(message):
-                mcp_message = await self._normalize_elasticsearch_log(message)
-            else:
-                self.logger.warning(f"Unknown message format: {list(message.keys())}")
-                return None
-
-            # Enrich with context
-            enriched_message = await self._enrich_with_context(mcp_message)
-
-            # AI-powered routing decision
+            # Chuẩn bị context cho AI
+            context = self._prepare_context(message)
+            
+            # Gọi AI để phân tích và chuẩn hóa
+            system_prompt = self._get_orchestrator_system_prompt()
+            prompt = self._build_orchestrator_prompt(context)
+            
+            # Thêm retry và error handling
+            for attempt in range(3):
+                try:
+                    response = await self.call_lm_studio(
+                        prompt=prompt,
+                        system_prompt=system_prompt,
+                        api_url=ORCHESTRATOR_ENDPOINT,
+                        temperature=0.1
+                    )
+                    if response:
+                        break
+                except Exception as e:
+                    self.logger.error(f"API call attempt {attempt + 1} failed: {e}")
+                    if attempt == 2:  # Last attempt
+                        return self._create_fallback_mcp(message)
+                    await asyncio.sleep(2 ** attempt)
+                
+            # Parse kết quả AI và tạo MCP message
+            normalized_data = self._parse_ai_response(response, message)
+            
+            # Enrich with additional context
+            enriched_message = await self._enrich_with_context(normalized_data)
+            
+            # Determine routing
             routing_decision = await self._determine_routing(enriched_message)
             enriched_message["agent_route"] = routing_decision
 
@@ -47,7 +66,113 @@ class OrchestratorAgent(BaseAgent):
 
         except Exception as e:
             self.logger.error(f"Error processing message: {e}")
-            return None
+            return self._create_fallback_mcp(message)
+
+    def _prepare_context(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Prepare context for AI analysis"""
+        context = {
+            "raw_message": message,
+            "timestamp": datetime.now().isoformat(),
+            "message_type": "alert" if self._is_prometheus_alert(message) else "log"
+        }
+        
+        if self._is_prometheus_alert(message):
+            context["alert_metadata"] = {
+                "name": message.get("alertname"),
+                "severity": message.get("labels", {}).get("severity"),
+                "instance": message.get("labels", {}).get("instance"),
+                "job": message.get("labels", {}).get("job")
+            }
+        
+        return context
+
+    def _get_orchestrator_system_prompt(self) -> str:
+        """Load orchestrator system prompt"""
+        with open('prompts/orchestrator_system.txt', 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _build_orchestrator_prompt(self, context: Dict[str, Any]) -> str:
+        """Build prompt for orchestrator"""
+        with open('prompts/orchestrator_prompt.txt', 'r', encoding='utf-8') as f:
+            prompt_template = f.read()
+            
+        return prompt_template.format(
+            message_type=context["message_type"],
+            raw_message=json.dumps(context["raw_message"], indent=2),
+            timestamp=context["timestamp"]
+        )
+
+    def _parse_ai_response(self, response: str, original_message: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse AI response and create MCP message"""
+        try:
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if not json_match:
+                return self._create_fallback_mcp(original_message)
+
+            ai_result = json.loads(json_match.group())
+            
+            # Create MCP message with full alert details
+            mcp_message = MCPMessage(
+                id=original_message.get("alert_id", str(uuid.uuid4())),
+                source="prometheus",
+                agent_route="classifier",
+                content={
+                    "type": original_message.get("alert_type", "unknown"),
+                    "alert_name": original_message.get("alertname"),
+                    "alert_id": original_message.get("alert_id"),
+                    "server_ip": original_message.get("server_ip"),
+                    "severity": original_message.get("alert_level", AlertSeverity.MEDIUM),
+                    "status": original_message.get("status", "firing"),
+                    "message": original_message.get("message"),
+                    "description": original_message.get("description"),
+                    "labels": original_message.get("labels", {}),
+                    "annotations": original_message.get("annotations", {}),
+                    "starts_at": original_message.get("starts_at"),
+                    "ends_at": original_message.get("ends_at"),
+                    "created_at": original_message.get("created_at"),
+                    "os_info": {
+                        "os": original_message.get("os"),
+                        "version": original_message.get("os_version")
+                    },
+                    "manager_info": {
+                        "user": original_message.get("manager_user"),
+                        "email": original_message.get("manager_email")
+                    },
+                    "metrics": {
+                        "current_value": original_message.get("current_value"),
+                        "load1": original_message.get("metric_load1")
+                    },
+                    "ai_analysis": {
+                        "normalized_type": ai_result.get("normalized_type"),
+                        "suggested_severity": ai_result.get("suggested_severity"),
+                        "primary_component": ai_result.get("primary_component"),
+                        "confidence_score": ai_result.get("confidence_score", 0.0),
+                        "analysis_notes": ai_result.get("analysis_notes")
+                    }
+                }
+            )
+
+            return mcp_message.dict()
+
+        except Exception as e:
+            self.logger.error(f"Failed to parse AI response: {e}")
+            return self._create_fallback_mcp(original_message)
+
+    def _create_fallback_mcp(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Create fallback MCP message when AI processing fails"""
+        return MCPMessage(
+            id=str(uuid.uuid4()),
+            source="prometheus",
+            agent_route="classifier",
+            content={
+                "type": "alert",
+                "alert_name": message.get("alertname", "Unknown"),
+                "severity": AlertSeverity.MEDIUM,
+                "status": message.get("status", "firing"),
+                "labels": message.get("labels", {}),
+                "annotations": message.get("annotations", {})
+            }
+        ).dict()
 
     def _is_prometheus_alert(self, message: Dict[str, Any]) -> bool:
         """Check if message is from Prometheus"""

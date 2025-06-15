@@ -5,8 +5,8 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from base_agent import BaseAgent
 from mcp_schema import EvaluationResult, FeedbackMessage, AlertCategory, AlertSeverity
+from config import CLASSIFIER_ENDPOINT, EVALUATOR_ENDPOINT, ORCHESTRATOR_ENDPOINT, DEFAULT_TEMPERATURE
 
-EVALUATOR_ENDPOINT = "http://127.0.0.1:5000/v1/chat/completions"
 
 
 class EvaluatorAgent(BaseAgent):
@@ -14,7 +14,7 @@ class EvaluatorAgent(BaseAgent):
         super().__init__(
             agent_name="evaluator",
             # model_name="qwen2.5:14b-instruct",
-            model_name="qwen2.5:14b-instruct",
+            model_name="mistral-7b-instruct-v0.1",
             **kwargs
         )
         self.evaluation_history = {}

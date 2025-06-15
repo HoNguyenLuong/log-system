@@ -9,8 +9,10 @@ from datetime import datetime
 import httpx
 from kafka import KafkaProducer, KafkaConsumer
 from kafka.errors import KafkaError
+from kafka.admin import KafkaAdminClient, NewTopic
+from config import LLM_CHAT_ENDPOINT, DEFAULT_TEMPERATURE, MAX_RETRIES, TIMEOUT
 
-
+ 
 class BaseAgent(ABC):
     def __init__(self,
                  agent_name: str,
@@ -61,38 +63,40 @@ class BaseAgent(ABC):
                 await asyncio.sleep(2 ** attempt)
         return False
 
-    async def call_ollama(self, prompt: str, system_prompt: str = "", temperature: float = 0.1) -> str:
-        """Call Ollama API for AI inference with enhanced error handling"""
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            payload = {
-                "model": self.model_name,
-                "prompt": prompt,
-                "system": system_prompt,
-                "stream": False,
-                "options": {
-                    "temperature": temperature,
-                    "top_p": 0.9,
-                    "top_k": 40,
-                    "repeat_penalty": 1.1
-                }
-            }
+    # async def call_ollama(self, prompt: str, system_prompt: str = "", temperature: float = 0.1) -> str:
+    #     """Call Ollama API for AI inference with enhanced error handling"""
+    #     async with httpx.AsyncClient(timeout=300.0) as client:
+    #         payload = {
+    #             "model": self.model_name,
+    #             "prompt": prompt,
+    #             "system": system_prompt,
+    #             "stream": False,
+    #             "options": {
+    #                 "temperature": temperature,
+    #                 "top_p": 0.9,
+    #                 "top_k": 40,
+    #                 "repeat_penalty": 1.1
+    #             }
+    #         }
+    #
+    #         max_retries = 3
+    #         for attempt in range(max_retries):
+    #             try:
+    #                 response = await client.post(f"{self.ollama_base_url}/api/generate", json=payload)
+    #                 response.raise_for_status()
+    #                 result = response.json()
+    #                 return result.get("response", "").strip()
+    #             except Exception as e:
+    #                 self.logger.error(f"Ollama API attempt {attempt + 1} failed: {e}")
+    #                 if attempt == max_retries - 1:
+    #                     raise
+    #                 await asyncio.sleep(2 ** attempt)
 
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    response = await client.post(f"{self.ollama_base_url}/api/generate", json=payload)
-                    response.raise_for_status()
-                    result = response.json()
-                    return result.get("response", "").strip()
-                except Exception as e:
-                    self.logger.error(f"Ollama API attempt {attempt + 1} failed: {e}")
-                    if attempt == max_retries - 1:
-                        raise
-                    await asyncio.sleep(2 ** attempt)
-
-    async def call_lm_studio(self, prompt: str, system_prompt: str = "", api_url: str = "http://localhost:5000/api/generate", temperature: float = 0.1) -> str:
+    async def call_lm_studio(self, prompt: str, system_prompt: str = "", 
+                            api_url: str = LLM_CHAT_ENDPOINT, 
+                            temperature: float = DEFAULT_TEMPERATURE) -> str:
         """Call LM Studio API for AI inference"""
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
@@ -105,14 +109,18 @@ class BaseAgent(ABC):
                 "stream": False
             }
 
-            try:
-                response = await client.post(api_url, json=payload)
-                response.raise_for_status()
-                result = response.json()
-                return result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-            except Exception as e:
-                self.logger.error(f"LM Studio API call failed: {e}")
-                return ""
+            for attempt in range(MAX_RETRIES):
+                try:
+                    response = await client.post(api_url, json=payload)
+                    response.raise_for_status()
+                    result = response.json()
+                    return result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                except Exception as e:
+                    self.logger.error(f"LM Studio API call failed (attempt {attempt + 1}/{MAX_RETRIES}): {e}")
+                    if attempt == MAX_RETRIES - 1:
+                        return ""
+                    await asyncio.sleep(2 ** attempt)
+            return ""
 
     def register_message_handler(self, message_type: str, handler: Callable):
         """Register message handler for specific message types"""
@@ -122,6 +130,31 @@ class BaseAgent(ABC):
     async def process_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Process incoming message - implemented by each agent"""
         pass
+
+    def _create_output_topics(self):
+        """Ensure output topics exist in Kafka"""
+        output_topics = list(self.get_output_topics().values())
+
+        try:
+            admin_client = KafkaAdminClient(
+                bootstrap_servers=self.kafka_bootstrap_servers,
+                client_id=f"{self.agent_name}_admin"
+            )
+
+            existing_topics = admin_client.list_topics()
+            topics_to_create = [
+                NewTopic(name=topic, num_partitions=1, replication_factor=1)
+                for topic in output_topics if topic not in existing_topics
+            ]
+
+            if topics_to_create:
+                admin_client.create_topics(new_topics=topics_to_create, validate_only=False)
+                self.logger.info(f"🧵 Created topics: {[t.name for t in topics_to_create]}")
+            else:
+                self.logger.info("✅ All output topics already exist")
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to create output topics: {e}")
 
     @abstractmethod
     def get_input_topics(self) -> List[str]:
@@ -136,6 +169,7 @@ class BaseAgent(ABC):
     async def start(self):
         """Start the agent with enhanced error handling"""
         self.running = True
+        self._create_output_topics()
         self.consumer = KafkaConsumer(
             *self.get_input_topics(),
             bootstrap_servers=[self.kafka_bootstrap_servers],

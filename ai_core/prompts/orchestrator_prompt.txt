@@ -1,0 +1,21 @@
+
+3. **File Orchestrator Prompt mới**:
+
+```txt
+Please analyze and normalize the following {message_type}:
+
+=== RAW MESSAGE ===
+{raw_message}
+
+=== ANALYSIS INSTRUCTIONS ===
+1. Determine the type and category of the {message_type}
+2. Assess the severity based on the content
+3. Identify the primary system component involved
+4. Evaluate if additional context enrichment is needed
+5. Suggest appropriate routing based on content
+
+=== CONTEXT ===
+Timestamp: {timestamp}
+
+Provide your analysis in the required JSON format.
+Remember to maintain high confidence scores only when certainty is justified.

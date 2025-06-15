@@ -1,0 +1,15 @@
+"""AI Agent system configurations"""
+
+# LLM API Endpoints
+LLM_BASE_URL = "http://127.0.0.1:5000"
+LLM_CHAT_ENDPOINT = f"{LLM_BASE_URL}/v1/chat/completions"
+
+# Agent-specific endpoints
+CLASSIFIER_ENDPOINT = LLM_CHAT_ENDPOINT
+EVALUATOR_ENDPOINT = LLM_CHAT_ENDPOINT 
+ORCHESTRATOR_ENDPOINT = LLM_CHAT_ENDPOINT
+
+# Common configurations
+DEFAULT_TEMPERATURE = 0.1
+MAX_RETRIES = 3
+TIMEOUT = 300.0

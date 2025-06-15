@@ -6,8 +6,8 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from base_agent import BaseAgent
 from mcp_schema import ClassificationResult, AlertCategory, AlertSeverity, FeedbackMessage
+from config import CLASSIFIER_ENDPOINT, EVALUATOR_ENDPOINT, ORCHESTRATOR_ENDPOINT, DEFAULT_TEMPERATURE
 
-CLASSIFIER_ENDPOINT = "http://127.0.0.1:5000/v1/chat/completions"
 
 
 class ClassifierReasonerAgent(BaseAgent):
@@ -15,7 +15,7 @@ class ClassifierReasonerAgent(BaseAgent):
         super().__init__(
             agent_name="classifier_reasoner",
             # model_name="qwen2.5:14b-instruct",
-            model_name="qwen2.5:14b-instruct",
+            model_name="tinyllama-1.1b-chat-v1.0",
             **kwargs
         )
         self.feedback_memory = {}  # Store feedback for continuous learning
