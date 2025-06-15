@@ -18,7 +18,7 @@ class OrchestratorAgent(BaseAgent):
         self.es_client = Elasticsearch([{"host": "localhost", "port": 9200}])
 
     def get_input_topics(self) -> List[str]:
-        return ["alert", "log_alert"]
+        return ["enriched_alerts"]
 
     def get_output_topics(self) -> Dict[str, str]:
         return {"default": "classifier_in"}

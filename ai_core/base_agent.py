@@ -15,13 +15,11 @@ class BaseAgent(ABC):
     def __init__(self,
                  agent_name: str,
                  model_name: str,
-                 kafka_bootstrap_servers: str = "localhost:9192",
-                 ollama_base_url: str = "http://localhost:11434"):
+                 kafka_bootstrap_servers: str = "localhost:9192"):
 
         self.agent_name = agent_name
         self.model_name = model_name
         self.kafka_bootstrap_servers = kafka_bootstrap_servers
-        self.ollama_base_url = ollama_base_url
 
         # Logging setup
         self.logger = logging.getLogger(f"Agent.{agent_name}")

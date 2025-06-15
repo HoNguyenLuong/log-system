@@ -13,7 +13,6 @@ services:
       - redis
     volumes:
       - superset_home:/app/superset_home
-    restart: always
     command: >
       /bin/bash -c "
       superset db upgrade &&
@@ -21,6 +20,17 @@ services:
       superset init &&
       superset run -h 0.0.0.0 -p 8088 --with-threads --reload --debugger
       "
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      monitoring-network:
+        ipv4_address: 172.31.0.30
 
   db:
     image: postgres:13
@@ -31,13 +41,41 @@ services:
       POSTGRES_PASSWORD: superset
     volumes:
       - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # Spark bên ngoài truy cập qua localhost:5432
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      monitoring-network:
+        ipv4_address: 172.31.0.31
 
   redis:
     image: redis:latest
     container_name: superset_redis
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    networks:
+      monitoring-network:
+        ipv4_address: 172.31.0.32
 
 volumes:
   db_data:
   superset_home:
+
+networks:
+  monitoring-network:
+    external: true  # dùng lại mạng đã định nghĩa ở docker compose khác
